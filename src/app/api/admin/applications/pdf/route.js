@@ -1,6 +1,7 @@
 import path from "path";
 import { readFile } from "fs/promises";
 import { NextResponse } from "next/server";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { getAdminSession } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 
@@ -167,6 +168,53 @@ const getSignatureDataUri = async () => {
   }
 };
 
+const generateFallbackPdf = async (application) => {
+  const students = parseStudents(application.students);
+  const firstStudent = students[0] || {};
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]);
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  let y = 800;
+  const line = (text, isBold = false) => {
+    page.drawText(text, {
+      x: 50,
+      y,
+      size: 12,
+      font: isBold ? bold : regular,
+    });
+    y -= 18;
+  };
+
+  line("Internship Application", true);
+  y -= 4;
+  line(`Application ID: ${application.id}`);
+  line(`Submitted At: ${new Date(application.created_at).toISOString()}`);
+  y -= 8;
+
+  line("First Student", true);
+  line(`Name: ${firstStudent.studentName || "-"}`);
+  line(`Email: ${firstStudent.email || "-"}`);
+  line(`Admission Number: ${firstStudent.admissionNumber || "-"}`);
+  line(`Semester: ${firstStudent.semester || "-"}`);
+  line(`Batch Year: ${firstStudent.batch || "-"}`);
+  y -= 8;
+
+  line("Authority Details", true);
+  line(
+    `Authority Request: ${
+      application.needs_authority_request ? "Yes" : "No"
+    }`
+  );
+  line(`Name / Office Name: ${application.authority_name || "-"}`);
+  line(`Place: ${application.authority_place || "-"}`);
+  line(`Authority Email: ${application.authority_email || "-"}`);
+  line(`Send as Email: ${application.send_as_email ? "Yes" : "No"}`);
+
+  return Buffer.from(await pdfDoc.save());
+};
+
 const launchBrowser = async () => {
   if (process.env.VERCEL) {
     const chromium = (await import("@sparticuz/chromium")).default;
@@ -193,9 +241,10 @@ const generateApplicationPdf = async (application) => {
     renderHtmlTemplate(template, application, signatureDataUri)
   );
 
-  const browser = await launchBrowser();
+  let browser;
 
   try {
+    browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     const pdfBuffer = await page.pdf({
@@ -210,8 +259,13 @@ const generateApplicationPdf = async (application) => {
       },
     });
     return Buffer.from(pdfBuffer);
+  } catch (error) {
+    console.error("Primary PDF rendering failed, using fallback:", error);
+    return generateFallbackPdf(application);
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 };
 
