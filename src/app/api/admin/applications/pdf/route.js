@@ -267,8 +267,15 @@ const generateApplicationPdf = async (application) => {
     });
     return { buffer: Buffer.from(pdfBuffer), mode: "template" };
   } catch (error) {
-    console.error("Primary PDF rendering failed, using fallback:", error);
-    return { buffer: await generateFallbackPdf(application), mode: "fallback" };
+    const errorMessage = String(error?.message || "Unknown PDF render error");
+    console.error("Primary PDF rendering failed:", error);
+
+    // Keep fallback only in local development to ease debugging.
+    if (process.env.NODE_ENV === "development") {
+      return { buffer: await generateFallbackPdf(application), mode: "fallback" };
+    }
+
+    throw new Error(`Template PDF rendering failed: ${errorMessage}`);
   } finally {
     if (browser) {
       await browser.close();
@@ -337,10 +344,7 @@ export async function GET(request) {
     }
     return NextResponse.json(
       {
-        message:
-          process.env.NODE_ENV === "development"
-            ? `Unable to generate PDF. ${String(error?.message || "")}`
-            : "Unable to generate PDF.",
+        message: `Unable to generate PDF. ${String(error?.message || "")}`,
       },
       { status: 500 }
     );
