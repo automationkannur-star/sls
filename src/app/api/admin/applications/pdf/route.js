@@ -1,9 +1,10 @@
 import path from "path";
 import { readFile } from "fs/promises";
-import puppeteer from "puppeteer";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+
+export const runtime = "nodejs";
 
 const parseStudents = (students) => {
   if (Array.isArray(students)) {
@@ -166,6 +167,25 @@ const getSignatureDataUri = async () => {
   }
 };
 
+const launchBrowser = async () => {
+  if (process.env.VERCEL) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    const puppeteerCore = await import("puppeteer-core");
+
+    return puppeteerCore.default.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
+
+  const puppeteer = await import("puppeteer");
+  return puppeteer.default.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+};
+
 const generateApplicationPdf = async (application) => {
   const template = await readFile(TEMPLATE_PATH, "utf-8");
   const signatureDataUri = await getSignatureDataUri();
@@ -173,10 +193,7 @@ const generateApplicationPdf = async (application) => {
     renderHtmlTemplate(template, application, signatureDataUri)
   );
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  const browser = await launchBrowser();
 
   try {
     const page = await browser.newPage();
@@ -257,7 +274,12 @@ export async function GET(request) {
       );
     }
     return NextResponse.json(
-      { message: "Unable to generate PDF." },
+      {
+        message:
+          process.env.NODE_ENV === "development"
+            ? `Unable to generate PDF. ${String(error?.message || "")}`
+            : "Unable to generate PDF.",
+      },
       { status: 500 }
     );
   }

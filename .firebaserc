@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "sls-kannur",
+    "prod": "sls-kannur",
+    "dev": "sls-kannur"
+  },
+  "targets": {},
+  "etags": {}
+}
