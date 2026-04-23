@@ -130,11 +130,20 @@ const injectPrintOverrides = (html) => {
         margin: 0 !important;
         box-shadow: none !important;
       }
+      .pdf24_view {
+        font-size: 1em !important;
+        transform: scale(1) !important;
+        -webkit-transform: scale(1) !important;
+        -moz-transform: scale(1) !important;
+        transform-origin: top left !important;
+        -webkit-transform-origin: top left !important;
+        -moz-transform-origin: top left !important;
+      }
       .pdf24_02 {
         page-break-after: always;
         break-after: page;
       }
-      .pdf24_02:last-child {
+      .pdf24_02:last-of-type {
         page-break-after: auto;
         break-after: auto;
       }
@@ -253,7 +262,7 @@ const generateApplicationPdf = async (application) => {
       waitUntil: ["domcontentloaded", "networkidle0"],
       timeout: 30000,
     });
-    await page.emulateMediaType("screen");
+    await page.emulateMediaType("print");
     const pdfBuffer = await page.pdf({
       format: "A4",
       preferCSSPageSize: true,
