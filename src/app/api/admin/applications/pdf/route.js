@@ -6,6 +6,7 @@ import { getAdminSession } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const parseStudents = (students) => {
   if (Array.isArray(students)) {
@@ -219,11 +220,13 @@ const launchBrowser = async () => {
   if (process.env.VERCEL) {
     const chromium = (await import("@sparticuz/chromium")).default;
     const puppeteerCore = await import("puppeteer-core");
+    const executablePath = await chromium.executablePath();
 
     return puppeteerCore.default.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
+      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
     });
   }
 
@@ -246,7 +249,11 @@ const generateApplicationPdf = async (application) => {
   try {
     browser = await launchBrowser();
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, {
+      waitUntil: ["domcontentloaded", "networkidle0"],
+      timeout: 30000,
+    });
+    await page.emulateMediaType("screen");
     const pdfBuffer = await page.pdf({
       format: "A4",
       preferCSSPageSize: true,
@@ -258,10 +265,10 @@ const generateApplicationPdf = async (application) => {
         left: "0",
       },
     });
-    return Buffer.from(pdfBuffer);
+    return { buffer: Buffer.from(pdfBuffer), mode: "template" };
   } catch (error) {
     console.error("Primary PDF rendering failed, using fallback:", error);
-    return generateFallbackPdf(application);
+    return { buffer: await generateFallbackPdf(application), mode: "fallback" };
   } finally {
     if (browser) {
       await browser.close();
@@ -306,7 +313,7 @@ export async function GET(request) {
     if (!application) {
       return NextResponse.json({ message: "Application not found." }, { status: 404 });
     }
-    const pdfBuffer = await generateApplicationPdf(application);
+    const { buffer: pdfBuffer, mode } = await generateApplicationPdf(application);
 
     return new NextResponse(pdfBuffer, {
       status: 200,
@@ -314,6 +321,7 @@ export async function GET(request) {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="application-${id}.pdf"`,
         "Cache-Control": "no-store",
+        "x-pdf-mode": mode,
       },
     });
   } catch (error) {
