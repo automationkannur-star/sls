@@ -111,8 +111,45 @@
   cursor: pointer;
 }
 
+.checkboxTextWrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.checkboxInlineNote {
+  color: #5b648c;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .authoritySection {
   margin-top: 8px;
+}
+
+.authorityHeader {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d9def7;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #edf2ff 0%, #f3f6ff 100%);
+}
+
+.authorityTitle {
+  margin: 0 0 3px;
+  color: #253056;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+}
+
+.authoritySubtitle {
+  margin: 0;
+  color: #5b648c;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .fieldGroup {

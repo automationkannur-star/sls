@@ -483,12 +483,22 @@ export default function Home() {
               }}
               disabled={isSubmitting}
             />
-            <span>Whether need a request to authority?</span>
+            <span className={styles.checkboxTextWrap}>
+              <span>Whether need a request to authority?</span>
+              <small className={styles.checkboxInlineNote}>
+                Please tick this checkbox for bonafide request to any authority.
+              </small>
+            </span>
           </label>
 
           {needsAuthorityRequest && (
             <div className={styles.authoritySection}>
-              <h2 className={styles.sectionTitle}>Applying to Authority</h2>
+              <div className={styles.authorityHeader}>
+                <h2 className={styles.authorityTitle}>Applying to Authority</h2>
+                <p className={styles.authoritySubtitle}>
+                  Enter authority details for request letter and email communication.
+                </p>
+              </div>
               <div className={styles.authorityBlock}>
                 <div className={styles.fieldGroup}>
                   <input
@@ -545,7 +555,12 @@ export default function Home() {
                     }
                     disabled={isSubmitting}
                   />
-                  <span>Send as email</span>
+                  <span className={styles.checkboxTextWrap}>
+                    <span>Send as email</span>
+                    <small className={styles.checkboxInlineNote}>
+                      Please tick for sending email from SLS to applying authority email.
+                    </small>
+                  </span>
                 </label>
               </div>
             </div>

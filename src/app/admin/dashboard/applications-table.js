@@ -405,7 +405,7 @@ export default function ApplicationsTable({ applications }) {
           <thead className="tableHead">
             <tr>
               <th>Select</th>
-              <th>ID</th>
+              <th>Admission Number</th>
               <th>First Student Name</th>
               <th>Total Students</th>
               <th>Authority Request</th>
@@ -440,7 +440,9 @@ export default function ApplicationsTable({ applications }) {
                       }}
                     />
                   </td>
-                  <td className="fw-semibold text-primary-emphasis">#{application.id}</td>
+                  <td className="fw-semibold text-primary-emphasis">
+                    {application.students[0]?.admissionNumber || "-"}
+                  </td>
                   <td className="fw-medium">{firstStudentName}</td>
                   <td>{application.students.length}</td>
                   <td>

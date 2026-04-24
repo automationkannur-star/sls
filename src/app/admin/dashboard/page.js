@@ -50,11 +50,7 @@ export default async function AdminDashboardPage() {
         <div className="card border-0 shadow-sm">
           <div className="card-body">
             <h2 className="h5 mb-3">Internship Applications</h2>
-            {result.rows.length === 0 ? (
-              <p className="text-muted mb-0">No applications found.</p>
-            ) : (
-              <ApplicationsTable applications={applications} />
-            )}
+            <ApplicationsTable applications={applications} />
           </div>
         </div>
       </div>
