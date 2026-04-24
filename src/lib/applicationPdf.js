@@ -149,8 +149,6 @@ const buildInstitutionStudentRowsForEmail = (students) => {
 
 export const buildInstitutionEmailBodyHtml = (application) => {
   const students = parseStudents(application?.students);
-  const submittedDate = new Date(application?.created_at || Date.now());
-  const dateDisplay = submittedDate.toLocaleDateString("en-GB");
   const fromBlockHtml = buildInstitutionFromBlockHtml();
   const toBlockHtml = buildInstitutionToBlockHtml(application);
   const studentRows = buildInstitutionStudentRowsForEmail(students);
@@ -158,14 +156,12 @@ export const buildInstitutionEmailBodyHtml = (application) => {
 
   return `
     <div style="font-family:Times New Roman, serif;color:#111;line-height:1.5;max-width:760px;">
-      <p style="margin:0 0 10px 0;">SLS/1/HOD/${submittedDate.getFullYear()}</p>
-      <p style="margin:0 0 16px 0;">${escapeHtml(dateDisplay)}</p>
       <p style="margin:0 0 4px 0;"><strong>From,</strong></p>
       <p style="margin:0 0 12px 0;">${fromBlockHtml}</p>
       <p style="margin:0 0 4px 0;"><strong>To,</strong></p>
       <p style="margin:0 0 14px 0;">${toBlockHtml}</p>
-      <p style="margin:0 0 10px 0;"><strong>Subject: Request for Permission for Internship Opportunities for Students</strong></p>
       <p style="margin:0 0 10px 0;">Respected Sir/Madam,</p>
+      <p style="margin:0 0 10px 0;"><strong>Subject: Request for Permission for Internship Opportunities for Students</strong></p>
       <p style="margin:0 0 10px 0;">
         I hope this letter finds you well. I am writing to request permission for the following students
         of School of Legal Studies, Kannur University to undertake 14 days internship at Office Of ${institutionInfo}

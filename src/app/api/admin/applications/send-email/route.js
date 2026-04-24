@@ -4,6 +4,9 @@ import { pool } from "@/lib/db";
 import { generateApplicationPdfBuffer, parseStudents } from "@/lib/applicationPdf";
 import { sendApplicationApprovedEmail } from "@/lib/mailer";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(request) {
   try {
     const session = await getAdminSession();

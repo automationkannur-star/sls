@@ -36,9 +36,14 @@ const parseResponseJson = async (response) => {
 };
 
 export default function ApplicationsTable({ applications }) {
+  const PAGE_SIZE = 10;
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [approvedIds, setApprovedIds] = useState({});
+  const [tableApplications, setTableApplications] = useState(applications);
+  const [selectedIds, setSelectedIds] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
   const [isApproving, setIsApproving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [sendingAuthorityEmailId, setSendingAuthorityEmailId] = useState(null);
@@ -82,12 +87,16 @@ export default function ApplicationsTable({ applications }) {
     []
   );
 
+  useEffect(() => {
+    setTableApplications(applications);
+  }, [applications]);
+
   const normalizedApplications = useMemo(() => {
-    return applications.map((application) => ({
+    return tableApplications.map((application) => ({
       ...application,
       students: parseStudents(application.students),
     }));
-  }, [applications]);
+  }, [tableApplications]);
 
   const visibleApplications = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -151,6 +160,20 @@ export default function ApplicationsTable({ applications }) {
       });
   }, [normalizedApplications, approvedIds, statusFilter, fromDate, toDate, searchText]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds({});
+  }, [searchText, statusFilter, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleApplications.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
+  const pagedApplications = visibleApplications.slice(pageStart, pageStart + PAGE_SIZE);
+  const currentPageIds = pagedApplications.map((application) => application.id);
+  const isAllCurrentPageSelected =
+    currentPageIds.length > 0 && currentPageIds.every((id) => Boolean(selectedIds[id]));
+  const selectedCount = Object.values(selectedIds).filter(Boolean).length;
+
   const approveApplication = async (applicationId) => {
     const response = await fetch("/api/admin/applications/approve", {
       method: "POST",
@@ -197,6 +220,23 @@ export default function ApplicationsTable({ applications }) {
     const result = await parseResponseJson(response);
     if (!response.ok) {
       throw new Error(result.message || "Unable to send authority email.");
+    }
+
+    return result;
+  };
+
+  const deleteApplications = async (ids) => {
+    const response = await fetch("/api/admin/applications/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+    });
+
+    const result = await parseResponseJson(response);
+    if (!response.ok) {
+      throw new Error(result.message || "Unable to delete selected applications.");
     }
 
     return result;
@@ -288,12 +328,83 @@ export default function ApplicationsTable({ applications }) {
         <small className="text-muted fw-medium">
           Showing {visibleApplications.length} application(s) in FIFO order.
         </small>
+        <div className="d-flex gap-2">
+          <button
+            className="btn btn-outline-primary btn-sm"
+            type="button"
+            disabled={currentPageIds.length === 0}
+            onClick={() => {
+              setSelectedIds((prev) => {
+                const next = { ...prev };
+                if (isAllCurrentPageSelected) {
+                  currentPageIds.forEach((id) => {
+                    delete next[id];
+                  });
+                } else {
+                  currentPageIds.forEach((id) => {
+                    next[id] = true;
+                  });
+                }
+                return next;
+              });
+            }}
+          >
+            {isAllCurrentPageSelected ? "Unselect All (Page)" : "Select All (Page)"}
+          </button>
+          <button
+            className="btn btn-outline-danger btn-sm"
+            type="button"
+            disabled={selectedCount === 0 || isDeleting}
+            onClick={async () => {
+              const idsToDelete = Object.entries(selectedIds)
+                .filter(([, isSelected]) => isSelected)
+                .map(([id]) => Number(id))
+                .filter((id) => Number.isInteger(id) && id > 0);
+
+              if (idsToDelete.length === 0) {
+                return;
+              }
+
+              setIsDeleting(true);
+              try {
+                const result = await deleteApplications(idsToDelete);
+                const deletedIds = Array.isArray(result.deletedIds) ? result.deletedIds : idsToDelete;
+
+                setTableApplications((prev) =>
+                  prev.filter((application) => !deletedIds.includes(application.id))
+                );
+                setSelectedIds((prev) => {
+                  const next = { ...prev };
+                  deletedIds.forEach((id) => {
+                    delete next[id];
+                  });
+                  return next;
+                });
+                if (selectedApplication && deletedIds.includes(selectedApplication.id)) {
+                  setSelectedApplication(null);
+                }
+                showToast(
+                  "success",
+                  "Deleted",
+                  result.message || `${deletedIds.length} application(s) deleted successfully.`
+                );
+              } catch (error) {
+                showToast("danger", "Delete failed", error.message || "Unable to delete records.");
+              } finally {
+                setIsDeleting(false);
+              }
+            }}
+          >
+            {isDeleting ? "Deleting..." : `Delete (${selectedCount})`}
+          </button>
+        </div>
       </div>
 
-      <div className="table-responsive rounded-3 border shadow-sm overflow-hidden">
+      <div className="table-responsive rounded-3 border shadow-sm adminTableWrapper">
         <table className="table table-sm align-middle mb-0 adminTable">
           <thead className="tableHead">
             <tr>
+              <th>Select</th>
               <th>ID</th>
               <th>First Student Name</th>
               <th>Total Students</th>
@@ -305,11 +416,30 @@ export default function ApplicationsTable({ applications }) {
             </tr>
           </thead>
           <tbody>
-            {visibleApplications.map((application) => {
+            {pagedApplications.map((application) => {
               const firstStudentName = application.students[0]?.studentName || "-";
               const isApproved = Boolean(application.is_approved || approvedIds[application.id]);
               return (
                 <tr key={application.id} className="tableRow">
+                  <td>
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={Boolean(selectedIds[application.id])}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        setSelectedIds((prev) => {
+                          const next = { ...prev };
+                          if (checked) {
+                            next[application.id] = true;
+                          } else {
+                            delete next[application.id];
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                  </td>
                   <td className="fw-semibold text-primary-emphasis">#{application.id}</td>
                   <td className="fw-medium">{firstStudentName}</td>
                   <td>{application.students.length}</td>
@@ -514,9 +644,9 @@ export default function ApplicationsTable({ applications }) {
                 </tr>
               );
             })}
-            {visibleApplications.length === 0 && (
+            {pagedApplications.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-muted py-4">
+                <td colSpan={9} className="text-center text-muted py-4">
                   No applications found for the selected filters.
                 </td>
               </tr>
@@ -524,7 +654,38 @@ export default function ApplicationsTable({ applications }) {
           </tbody>
         </table>
       </div>
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <small className="text-muted">
+          Page {safeCurrentPage} of {totalPages}
+        </small>
+        <div className="btn-group" role="group" aria-label="Pagination">
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            type="button"
+            disabled={safeCurrentPage === 1}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </button>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            type="button"
+            disabled={safeCurrentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </button>
+        </div>
+      </div>
       <style jsx>{`
+        .adminTableWrapper {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        .adminTable {
+          min-width: 1060px;
+        }
         .filterCard {
           background: linear-gradient(135deg, #f8fbff 0%, #f4f7ff 100%);
         }
