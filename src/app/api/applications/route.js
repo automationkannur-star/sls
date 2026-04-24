@@ -25,6 +25,26 @@ export async function POST(request) {
       );
     }
 
+    const hasMissingAdmissionNumber = students.some(
+      (student) => !String(student?.admissionNumber || "").trim()
+    );
+    if (hasMissingAdmissionNumber) {
+      return NextResponse.json(
+        { message: "Admission number is required for all student rows." },
+        { status: 400 }
+      );
+    }
+
+    const hasMissingSemester = students.some(
+      (student) => !String(student?.semester || "").trim()
+    );
+    if (hasMissingSemester) {
+      return NextResponse.json(
+        { message: "Semester is required for all student rows." },
+        { status: 400 }
+      );
+    }
+
     const hasInvalidBatchYear = students.some((student) => {
       const batchYear = String(student?.batch || "").trim();
       if (!batchYearRegex.test(batchYear)) {

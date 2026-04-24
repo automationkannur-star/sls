@@ -24,8 +24,8 @@ export default async function AdminDashboardPage() {
         is_approved,
         approved_at
       FROM internship_applications
-      ORDER BY created_at DESC
-      LIMIT 100
+      ORDER BY created_at ASC
+      LIMIT 500
     `
   );
   const applications = result.rows.map((row) => ({
@@ -34,25 +34,30 @@ export default async function AdminDashboardPage() {
   }));
 
   return (
-    <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h3 mb-1">Admin Dashboard</h1>
-          <p className="text-muted mb-0">Welcome, {session.username}</p>
+    <>
+      <header className="adminTopHeader border-bottom bg-light">
+        <div className="container d-flex align-items-center justify-content-between py-2">
+          <div>
+            <h1 className="h5 mb-0">Admin Dashboard</h1>
+            <p className="text-muted small mb-0">Manage internship applications</p>
+          </div>
+          <LogoutButton username={session.username} />
         </div>
-        <LogoutButton />
-      </div>
+      </header>
 
-      <div className="card border-0 shadow-sm">
-        <div className="card-body">
-          <h2 className="h5 mb-3">Internship Applications</h2>
-          {result.rows.length === 0 ? (
-            <p className="text-muted mb-0">No applications found.</p>
-          ) : (
-            <ApplicationsTable applications={applications} />
-          )}
+      <div className="container py-4">
+
+        <div className="card border-0 shadow-sm">
+          <div className="card-body">
+            <h2 className="h5 mb-3">Internship Applications</h2>
+            {result.rows.length === 0 ? (
+              <p className="text-muted mb-0">No applications found.</p>
+            ) : (
+              <ApplicationsTable applications={applications} />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

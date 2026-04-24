@@ -30,6 +30,8 @@ export default function Home() {
   const [needsAuthorityRequest, setNeedsAuthorityRequest] = useState(false);
   const [errors, setErrors] = useState({
     studentNames: {},
+    studentAdmissionNumbers: {},
+    studentSemesters: {},
     studentBatchYears: {},
     firstStudentEmail: "",
     authorityName: "",
@@ -61,6 +63,8 @@ export default function Home() {
     setNeedsAuthorityRequest(false);
     setErrors({
       studentNames: {},
+      studentAdmissionNumbers: {},
+      studentSemesters: {},
       studentBatchYears: {},
       firstStudentEmail: "",
       authorityName: "",
@@ -115,6 +119,38 @@ export default function Home() {
         };
       });
     }
+
+    if (field === "admissionNumber") {
+      setErrors((prevErrors) => {
+        if (!prevErrors.studentAdmissionNumbers[index]) {
+          return prevErrors;
+        }
+
+        const updatedAdmissionErrors = { ...prevErrors.studentAdmissionNumbers };
+        delete updatedAdmissionErrors[index];
+
+        return {
+          ...prevErrors,
+          studentAdmissionNumbers: updatedAdmissionErrors,
+        };
+      });
+    }
+
+    if (field === "semester") {
+      setErrors((prevErrors) => {
+        if (!prevErrors.studentSemesters[index]) {
+          return prevErrors;
+        }
+
+        const updatedSemesterErrors = { ...prevErrors.studentSemesters };
+        delete updatedSemesterErrors[index];
+
+        return {
+          ...prevErrors,
+          studentSemesters: updatedSemesterErrors,
+        };
+      });
+    }
   };
 
   const addNewStudent = () => {
@@ -148,6 +184,8 @@ export default function Home() {
     setErrors((prevErrors) => ({
       ...prevErrors,
       studentNames: {},
+      studentAdmissionNumbers: {},
+      studentSemesters: {},
       studentBatchYears: {},
     }));
     setSubmitMessage({ type: "", text: "" });
@@ -180,11 +218,21 @@ export default function Home() {
     setSubmitMessage({ type: "", text: "" });
 
     const studentNameErrors = {};
+    const studentAdmissionNumberErrors = {};
+    const studentSemesterErrors = {};
     const studentBatchYearErrors = {};
 
     students.forEach((student, index) => {
       if (!student.studentName.trim()) {
         studentNameErrors[index] = "Student name is required.";
+      }
+
+      if (!String(student.admissionNumber || "").trim()) {
+        studentAdmissionNumberErrors[index] = "Admission number is required.";
+      }
+
+      if (!String(student.semester || "").trim()) {
+        studentSemesterErrors[index] = "Semester is required.";
       }
 
       const batchYear = String(student.batch || "").trim();
@@ -224,6 +272,8 @@ export default function Home() {
 
     setErrors({
       studentNames: studentNameErrors,
+      studentAdmissionNumbers: studentAdmissionNumberErrors,
+      studentSemesters: studentSemesterErrors,
       studentBatchYears: studentBatchYearErrors,
       firstStudentEmail: firstStudentEmailError,
       authorityName: authorityNameError,
@@ -232,6 +282,8 @@ export default function Home() {
 
     const hasErrors =
       Object.keys(studentNameErrors).length > 0 ||
+      Object.keys(studentAdmissionNumberErrors).length > 0 ||
+      Object.keys(studentSemesterErrors).length > 0 ||
       Object.keys(studentBatchYearErrors).length > 0 ||
       Boolean(firstStudentEmailError) ||
       Boolean(authorityNameError) ||
@@ -279,7 +331,7 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <form className={styles.main} onSubmit={handleSubmit}>
-        <h1 className={styles.title}>Intership Application Form</h1>
+        <h1 className={styles.title}>Internship Application Form</h1>
 
         <section className={styles.formSection}>
           <div className={styles.sectionHeaderRow}>
@@ -314,16 +366,25 @@ export default function Home() {
                 )}
               </div>
 
-              <input
-                id={`admission-number-${index}`}
-                className={styles.input}
-                type="text"
-                value={student.admissionNumber}
-                onChange={(event) =>
-                  handleFieldChange(index, "admissionNumber", event.target.value)
-                }
-                placeholder="Admission Number"
-              />
+              <div className={styles.fieldGroup}>
+                <input
+                  id={`admission-number-${index}`}
+                  className={`${styles.input} ${
+                    errors.studentAdmissionNumbers[index] ? styles.inputError : ""
+                  }`}
+                  type="text"
+                  value={student.admissionNumber}
+                  onChange={(event) =>
+                    handleFieldChange(index, "admissionNumber", event.target.value)
+                  }
+                  placeholder="Admission Number"
+                />
+                {errors.studentAdmissionNumbers[index] && (
+                  <p className={styles.errorText}>
+                    {errors.studentAdmissionNumbers[index]}
+                  </p>
+                )}
+              </div>
 
               <div className={styles.fieldGroup}>
                 <input
@@ -347,16 +408,23 @@ export default function Home() {
                 )}
               </div>
 
-              <input
-                id={`semester-${index}`}
-                className={styles.input}
-                type="text"
-                value={student.semester}
-                onChange={(event) =>
-                  handleFieldChange(index, "semester", event.target.value)
-                }
-                placeholder="Semester"
-              />
+              <div className={styles.fieldGroup}>
+                <input
+                  id={`semester-${index}`}
+                  className={`${styles.input} ${
+                    errors.studentSemesters[index] ? styles.inputError : ""
+                  }`}
+                  type="text"
+                  value={student.semester}
+                  onChange={(event) =>
+                    handleFieldChange(index, "semester", event.target.value)
+                  }
+                  placeholder="Semester"
+                />
+                {errors.studentSemesters[index] && (
+                  <p className={styles.errorText}>{errors.studentSemesters[index]}</p>
+                )}
+              </div>
 
               <div className={styles.fieldGroup}>
                 <input
@@ -500,7 +568,6 @@ export default function Home() {
           </button>
         </div>
       </form>
-
       <Modal
         show={showSuccessModal}
         onHide={() => setShowSuccessModal(false)}
