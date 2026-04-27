@@ -39,6 +39,7 @@ export async function POST(request) {
           authority_place,
           authority_email,
           send_as_email,
+          institution,
           created_at
       `,
       [id, approvedBy]

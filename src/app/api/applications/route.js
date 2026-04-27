@@ -5,9 +5,12 @@ import { sendNewApplicationAdminEmail } from "@/lib/mailer";
 export async function POST(request) {
   try {
     const payload = await request.json();
-    const { students, needsAuthorityRequest, authorityDetails } = payload;
+    const { students, needsAuthorityRequest, authorityDetails, institution = "sls" } =
+      payload;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const batchYearRegex = /^\d{4}$/;
+    const semesterRegex = /^[1-9]$/;
+    const normalizedInstitution = String(institution).trim().toLowerCase();
 
     if (!Array.isArray(students) || students.length === 0) {
       return NextResponse.json(
@@ -42,6 +45,16 @@ export async function POST(request) {
     if (hasMissingSemester) {
       return NextResponse.json(
         { message: "Semester is required for all student rows." },
+        { status: 400 }
+      );
+    }
+
+    const hasInvalidSemester = students.some(
+      (student) => !semesterRegex.test(String(student?.semester || "").trim())
+    );
+    if (hasInvalidSemester) {
+      return NextResponse.json(
+        { message: "Semester must be a single digit (1-9) for all student rows." },
         { status: 400 }
       );
     }
@@ -87,6 +100,13 @@ export async function POST(request) {
       }
     }
 
+    if (!["sls", "mjs"].includes(normalizedInstitution)) {
+      return NextResponse.json(
+        { message: "Invalid institution provided." },
+        { status: 400 }
+      );
+    }
+
     const result = await pool.query(
       `
         INSERT INTO internship_applications (
@@ -95,9 +115,10 @@ export async function POST(request) {
           authority_name,
           authority_place,
           authority_email,
-          send_as_email
+          send_as_email,
+          institution
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
       `,
       [
@@ -107,6 +128,7 @@ export async function POST(request) {
         needsAuthorityRequest ? authorityDetails?.place?.trim() || null : null,
         needsAuthorityRequest ? authorityDetails?.email?.trim() || null : null,
         needsAuthorityRequest ? Boolean(authorityDetails?.sendAsEmail) : false,
+        normalizedInstitution,
       ]
     );
 

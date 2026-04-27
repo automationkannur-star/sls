@@ -47,8 +47,10 @@ export default function ApplicationsTable({ applications }) {
   const [approvingId, setApprovingId] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [sendingAuthorityEmailId, setSendingAuthorityEmailId] = useState(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
+  const [institutionFilter, setInstitutionFilter] = useState("sls");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [actionMessage, setActionMessage] = useState({
@@ -114,6 +116,13 @@ export default function ApplicationsTable({ applications }) {
           return false;
         }
 
+        const normalizedInstitution = String(application.institution || "sls")
+          .trim()
+          .toLowerCase();
+        if (normalizedInstitution !== institutionFilter) {
+          return false;
+        }
+
         const createdDate = new Date(application.created_at);
         if (fromDate) {
           const from = new Date(`${fromDate}T00:00:00`);
@@ -158,12 +167,20 @@ export default function ApplicationsTable({ applications }) {
         }
         return a.id - b.id;
       });
-  }, [normalizedApplications, approvedIds, statusFilter, fromDate, toDate, searchText]);
+  }, [
+    normalizedApplications,
+    approvedIds,
+    statusFilter,
+    institutionFilter,
+    fromDate,
+    toDate,
+    searchText,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds({});
-  }, [searchText, statusFilter, fromDate, toDate]);
+  }, [searchText, statusFilter, institutionFilter, fromDate, toDate]);
 
   const totalPages = Math.max(1, Math.ceil(visibleApplications.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -242,6 +259,27 @@ export default function ApplicationsTable({ applications }) {
     return result;
   };
 
+  const downloadApplicationPdf = async (applicationId) => {
+    const response = await fetch(`/api/admin/applications/pdf?id=${applicationId}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const result = await parseResponseJson(response);
+      throw new Error(result.message || "Unable to generate PDF.");
+    }
+
+    const pdfBlob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(pdfBlob);
+    const tempLink = document.createElement("a");
+    tempLink.href = downloadUrl;
+    tempLink.download = `application-${applicationId}.pdf`;
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    tempLink.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  };
+
   return (
     <>
       <ToastContainer
@@ -289,6 +327,16 @@ export default function ApplicationsTable({ applications }) {
           </select>
             </div>
             <div className="col-6 col-md-2">
+          <select
+            className="form-select shadow-none filterInput"
+            value={institutionFilter}
+            onChange={(event) => setInstitutionFilter(event.target.value)}
+          >
+            <option value="sls">SLS</option>
+            <option value="mjs">Manjeswaram</option>
+          </select>
+            </div>
+            <div className="col-6 col-md-1">
           <input
             className="form-control shadow-none filterInput"
             type="date"
@@ -297,7 +345,7 @@ export default function ApplicationsTable({ applications }) {
             title="From date"
           />
             </div>
-            <div className="col-6 col-md-2">
+            <div className="col-6 col-md-1">
           <input
             className="form-control shadow-none filterInput"
             type="date"
@@ -313,6 +361,7 @@ export default function ApplicationsTable({ applications }) {
             onClick={() => {
               setSearchText("");
               setStatusFilter("pending");
+              setInstitutionFilter("sls");
               setFromDate("");
               setToDate("");
             }}
@@ -419,6 +468,8 @@ export default function ApplicationsTable({ applications }) {
             {pagedApplications.map((application) => {
               const firstStudentName = application.students[0]?.studentName || "-";
               const isApproved = Boolean(application.is_approved || approvedIds[application.id]);
+              const isMjsApplication =
+                String(application.institution || "sls").trim().toLowerCase() === "mjs";
               return (
                 <tr key={application.id} className="tableRow">
                   <td>
@@ -551,12 +602,37 @@ export default function ApplicationsTable({ applications }) {
                           {approvingId === application.id ? "Approving..." : "Approve"}
                         </button>
                       )}
-                      <a
+                      <button
                         className="btn btn-sm btn-primary actionBtn"
-                        href={`/api/admin/applications/pdf?id=${application.id}`}
+                        type="button"
+                        disabled={downloadingPdfId === application.id}
+                        onClick={async () => {
+                          setDownloadingPdfId(application.id);
+                          setActionMessage({ type: "", text: "" });
+                          try {
+                            await downloadApplicationPdf(application.id);
+                            showToast("success", "PDF generated", "PDF downloaded successfully.");
+                          } catch (error) {
+                            showToast(
+                              "danger",
+                              "PDF download failed",
+                              error.message || "Unable to generate/download PDF."
+                            );
+                            if (selectedApplication?.id === application.id) {
+                              setActionMessage({
+                                type: "error",
+                                text: error.message || "Unable to generate/download PDF.",
+                              });
+                            }
+                          } finally {
+                            setDownloadingPdfId(null);
+                          }
+                        }}
                       >
-                        Download PDF
-                      </a>
+                        {downloadingPdfId === application.id
+                          ? "Generating..."
+                          : "Download PDF"}
+                      </button>
                       <button
                         className="btn btn-sm btn-warning actionBtn"
                         type="button"
@@ -599,48 +675,50 @@ export default function ApplicationsTable({ applications }) {
                           ? "Sending..."
                           : "Email to Student"}
                       </button>
-                      <button
-                        className="btn btn-sm btn-outline-warning actionBtn"
-                        type="button"
-                        disabled={sendingAuthorityEmailId === application.id}
-                        onClick={async () => {
-                          setSendingAuthorityEmailId(application.id);
-                          setActionMessage({ type: "", text: "" });
+                      {!isMjsApplication && (
+                        <button
+                          className="btn btn-sm btn-outline-warning actionBtn"
+                          type="button"
+                          disabled={sendingAuthorityEmailId === application.id}
+                          onClick={async () => {
+                            setSendingAuthorityEmailId(application.id);
+                            setActionMessage({ type: "", text: "" });
 
-                          try {
-                            const result = await sendAuthorityEmail(application.id);
-                            showToast(
-                              "success",
-                              "Email to authority",
-                              result?.message || "Email sent successfully."
-                            );
-                            if (selectedApplication?.id === application.id) {
-                              setActionMessage({
-                                type: "success",
-                                text: result.message,
-                              });
+                            try {
+                              const result = await sendAuthorityEmail(application.id);
+                              showToast(
+                                "success",
+                                "Email to authority",
+                                result?.message || "Email sent successfully."
+                              );
+                              if (selectedApplication?.id === application.id) {
+                                setActionMessage({
+                                  type: "success",
+                                  text: result.message,
+                                });
+                              }
+                            } catch (error) {
+                              showToast(
+                                "danger",
+                                "Email to authority failed",
+                                error.message || "Unable to send authority email."
+                              );
+                              if (selectedApplication?.id === application.id) {
+                                setActionMessage({
+                                  type: "error",
+                                  text: error.message,
+                                });
+                              }
+                            } finally {
+                              setSendingAuthorityEmailId(null);
                             }
-                          } catch (error) {
-                            showToast(
-                              "danger",
-                              "Email to authority failed",
-                              error.message || "Unable to send authority email."
-                            );
-                            if (selectedApplication?.id === application.id) {
-                              setActionMessage({
-                                type: "error",
-                                text: error.message,
-                              });
-                            }
-                          } finally {
-                            setSendingAuthorityEmailId(null);
-                          }
-                        }}
-                      >
-                        {sendingAuthorityEmailId === application.id
-                          ? "Sending..."
-                          : "Email to Authority"}
-                      </button>
+                          }}
+                        >
+                          {sendingAuthorityEmailId === application.id
+                            ? "Sending..."
+                            : "Email to Authority"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -898,12 +976,38 @@ export default function ApplicationsTable({ applications }) {
                 : "Approve"}
           </Button>
           {selectedApplication && (
-            <a
-              className="btn btn-primary"
-              href={`/api/admin/applications/pdf?id=${selectedApplication.id}`}
+            <Button
+              variant="primary"
+              disabled={downloadingPdfId === selectedApplication.id}
+              onClick={async () => {
+                setDownloadingPdfId(selectedApplication.id);
+                setActionMessage({ type: "", text: "" });
+                try {
+                  await downloadApplicationPdf(selectedApplication.id);
+                  showToast("success", "PDF generated", "PDF downloaded successfully.");
+                  setActionMessage({
+                    type: "success",
+                    text: "PDF downloaded successfully.",
+                  });
+                } catch (error) {
+                  showToast(
+                    "danger",
+                    "PDF download failed",
+                    error.message || "Unable to generate/download PDF."
+                  );
+                  setActionMessage({
+                    type: "error",
+                    text: error.message || "Unable to generate/download PDF.",
+                  });
+                } finally {
+                  setDownloadingPdfId(null);
+                }
+              }}
             >
-              Download PDF
-            </a>
+              {downloadingPdfId === selectedApplication.id
+                ? "Generating..."
+                : "Download PDF"}
+            </Button>
           )}
           <Button variant="secondary" onClick={() => setSelectedApplication(null)}>
             Close

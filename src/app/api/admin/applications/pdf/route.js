@@ -30,6 +30,7 @@ export async function GET(request) {
           authority_place,
           authority_email,
           send_as_email,
+          institution,
           is_approved,
           created_at
         FROM internship_applications

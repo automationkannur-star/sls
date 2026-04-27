@@ -2,6 +2,7 @@
 
 import styles from "./page.module.css";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 
@@ -9,6 +10,7 @@ export default function Home() {
   const MAX_STUDENTS = 5;
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const BATCH_YEAR_REGEX = /^\d{4}$/;
+  const SEMESTER_REGEX = /^[1-9]$/;
   const MIN_BATCH_YEAR = 2015;
   const MAX_BATCH_YEAR = 2050;
 
@@ -43,6 +45,10 @@ export default function Home() {
     text: "",
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const pathname = usePathname();
+  const institution = pathname === "/mjs" ? "mjs" : "sls";
+  const isMjsInstitution = institution === "mjs";
+  const shouldRequireAuthorityDetails = isMjsInstitution || needsAuthorityRequest;
 
   const resetForm = () => {
     setStudents([
@@ -231,8 +237,11 @@ export default function Home() {
         studentAdmissionNumberErrors[index] = "Admission number is required.";
       }
 
-      if (!String(student.semester || "").trim()) {
+      const semesterValue = String(student.semester || "").trim();
+      if (!semesterValue) {
         studentSemesterErrors[index] = "Semester is required.";
+      } else if (!SEMESTER_REGEX.test(semesterValue)) {
+        studentSemesterErrors[index] = "Semester must be a single digit (1-9).";
       }
 
       const batchYear = String(student.batch || "").trim();
@@ -248,7 +257,7 @@ export default function Home() {
     });
 
     let authorityNameError = "";
-    if (needsAuthorityRequest && !authorityDetails.authorityName.trim()) {
+    if (shouldRequireAuthorityDetails && !authorityDetails.authorityName.trim()) {
       authorityNameError = "Authority name is required.";
     }
 
@@ -261,7 +270,7 @@ export default function Home() {
     }
 
     let authorityEmailError = "";
-    if (needsAuthorityRequest && authorityDetails.sendAsEmail) {
+    if (!isMjsInstitution && needsAuthorityRequest && authorityDetails.sendAsEmail) {
       const authorityEmail = authorityDetails.email?.trim() || "";
       if (!authorityEmail) {
         authorityEmailError = "Authority email is required when Send as email is checked.";
@@ -302,8 +311,15 @@ export default function Home() {
         },
         body: JSON.stringify({
           students,
-          needsAuthorityRequest,
-          authorityDetails,
+          needsAuthorityRequest: shouldRequireAuthorityDetails,
+          authorityDetails: isMjsInstitution
+            ? {
+                ...authorityDetails,
+                email: "",
+                sendAsEmail: false,
+              }
+            : authorityDetails,
+          institution,
         }),
       });
 
@@ -335,15 +351,19 @@ export default function Home() {
 
         <section className={styles.formSection}>
           <div className={styles.sectionHeaderRow}>
-            <p className={styles.helperText}>Add up to {MAX_STUDENTS} students</p>
-            <button
-              className={styles.addButton}
-              type="button"
-              onClick={addNewStudent}
-              disabled={students.length >= MAX_STUDENTS || isSubmitting}
-            >
-              Add New
-            </button>
+            {!isMjsInstitution && (
+              <p className={styles.helperText}>Add up to {MAX_STUDENTS} students</p>
+            )}
+            {!isMjsInstitution && (
+              <button
+                className={styles.addButton}
+                type="button"
+                onClick={addNewStudent}
+                disabled={students.length >= MAX_STUDENTS || isSubmitting}
+              >
+                Add New
+              </button>
+            )}
           </div>
 
           {students.map((student, index) => (
@@ -415,9 +435,15 @@ export default function Home() {
                     errors.studentSemesters[index] ? styles.inputError : ""
                   }`}
                   type="text"
+                  inputMode="numeric"
+                  maxLength={1}
                   value={student.semester}
                   onChange={(event) =>
-                    handleFieldChange(index, "semester", event.target.value)
+                    handleFieldChange(
+                      index,
+                      "semester",
+                      event.target.value.replace(/[^\d]/g, "").slice(0, 1)
+                    )
                   }
                   placeholder="Semester"
                 />
@@ -450,55 +476,61 @@ export default function Home() {
                 )}
               </div>
 
-              <button
-                className={styles.removeButton}
-                type="button"
-                onClick={() => removeStudent(index)}
-                disabled={students.length === 1 || isSubmitting}
-              >
-                Remove
-              </button>
+              {!isMjsInstitution && (
+                <button
+                  className={styles.removeButton}
+                  type="button"
+                  onClick={() => removeStudent(index)}
+                  disabled={students.length === 1 || isSubmitting}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
         </section>
 
         <section className={styles.formSection}>
-          <label className={styles.checkboxRow} htmlFor="need-authority-request">
-            <input
-              id="need-authority-request"
-              className={styles.checkbox}
-              type="checkbox"
-              checked={needsAuthorityRequest}
-              onChange={(event) => {
-                const isChecked = event.target.checked;
-                setNeedsAuthorityRequest(isChecked);
-                setSubmitMessage({ type: "", text: "" });
-                if (!isChecked) {
-                  setErrors((prevErrors) => ({
-                    ...prevErrors,
-                    authorityName: "",
-                    authorityEmail: "",
-                  }));
-                }
-              }}
-              disabled={isSubmitting}
-            />
-            <span className={styles.checkboxTextWrap}>
-              <span>Whether need a request to authority?</span>
-              <small className={styles.checkboxInlineNote}>
-                Please tick this checkbox for bonafide request to any authority.
-              </small>
-            </span>
-          </label>
+          {!isMjsInstitution && (
+            <label className={styles.checkboxRow} htmlFor="need-authority-request">
+              <input
+                id="need-authority-request"
+                className={styles.checkbox}
+                type="checkbox"
+                checked={needsAuthorityRequest}
+                onChange={(event) => {
+                  const isChecked = event.target.checked;
+                  setNeedsAuthorityRequest(isChecked);
+                  setSubmitMessage({ type: "", text: "" });
+                  if (!isChecked) {
+                    setErrors((prevErrors) => ({
+                      ...prevErrors,
+                      authorityName: "",
+                      authorityEmail: "",
+                    }));
+                  }
+                }}
+                disabled={isSubmitting}
+              />
+              <span className={styles.checkboxTextWrap}>
+                <span>Whether need a request to authority?</span>
+                <small className={styles.checkboxInlineNote}>
+                  Please tick this checkbox for bonafide request to any authority.
+                </small>
+              </span>
+            </label>
+          )}
 
-          {needsAuthorityRequest && (
+          {(isMjsInstitution || needsAuthorityRequest) && (
             <div className={styles.authoritySection}>
-              <div className={styles.authorityHeader}>
-                <h2 className={styles.authorityTitle}>Applying to Authority</h2>
-                <p className={styles.authoritySubtitle}>
-                  Enter authority details for request letter and email communication.
-                </p>
-              </div>
+              {!isMjsInstitution && (
+                <div className={styles.authorityHeader}>
+                  <h2 className={styles.authorityTitle}>Applying to Authority</h2>
+                  <p className={styles.authoritySubtitle}>
+                    Enter authority details for request letter and email communication.
+                  </p>
+                </div>
+              )}
               <div className={styles.authorityBlock}>
                 <div className={styles.fieldGroup}>
                   <input
@@ -527,41 +559,45 @@ export default function Home() {
                   }
                   placeholder="Place"
                 />
-                <div className={styles.fieldGroup}>
-                  <input
-                    id="authority-email"
-                    className={`${styles.input} ${
-                      errors.authorityEmail ? styles.inputError : ""
-                    }`}
-                    type="email"
-                    value={authorityDetails.email}
-                    onChange={(event) =>
-                      handleAuthorityChange("email", event.target.value)
-                    }
-                    placeholder="Authority Email"
-                  />
-                  {errors.authorityEmail && (
-                    <p className={styles.errorText}>{errors.authorityEmail}</p>
-                  )}
-                </div>
-                <label className={styles.checkboxRow} htmlFor="send-as-email">
-                  <input
-                    id="send-as-email"
-                    className={styles.checkbox}
-                    type="checkbox"
-                    checked={authorityDetails.sendAsEmail}
-                    onChange={(event) =>
-                      handleAuthorityChange("sendAsEmail", event.target.checked)
-                    }
-                    disabled={isSubmitting}
-                  />
-                  <span className={styles.checkboxTextWrap}>
-                    <span>Send as email</span>
-                    <small className={styles.checkboxInlineNote}>
-                      Please tick for sending email from SLS to applying authority email.
-                    </small>
-                  </span>
-                </label>
+                {!isMjsInstitution && (
+                  <>
+                    <div className={styles.fieldGroup}>
+                      <input
+                        id="authority-email"
+                        className={`${styles.input} ${
+                          errors.authorityEmail ? styles.inputError : ""
+                        }`}
+                        type="email"
+                        value={authorityDetails.email}
+                        onChange={(event) =>
+                          handleAuthorityChange("email", event.target.value)
+                        }
+                        placeholder="Authority Email"
+                      />
+                      {errors.authorityEmail && (
+                        <p className={styles.errorText}>{errors.authorityEmail}</p>
+                      )}
+                    </div>
+                    <label className={styles.checkboxRow} htmlFor="send-as-email">
+                      <input
+                        id="send-as-email"
+                        className={styles.checkbox}
+                        type="checkbox"
+                        checked={authorityDetails.sendAsEmail}
+                        onChange={(event) =>
+                          handleAuthorityChange("sendAsEmail", event.target.checked)
+                        }
+                        disabled={isSubmitting}
+                      />
+                      <span className={styles.checkboxTextWrap}>
+                        <span>Send as email</span>
+                        <small className={styles.checkboxInlineNote}>
+                          Please tick for sending email from SLS to applying authority email.
+                        </small>
+                      </span>
+                    </label>
+                  </>
+                )}
               </div>
             </div>
           )}

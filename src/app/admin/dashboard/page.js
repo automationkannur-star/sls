@@ -20,6 +20,7 @@ export default async function AdminDashboardPage() {
         authority_place,
         authority_email,
         send_as_email,
+        institution,
         created_at,
         is_approved,
         approved_at
