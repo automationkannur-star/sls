@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import { sendNewApplicationAdminEmail } from "@/lib/mailer";
 
 export async function POST(request) {
   try {
@@ -108,6 +109,17 @@ export async function POST(request) {
         needsAuthorityRequest ? Boolean(authorityDetails?.sendAsEmail) : false,
       ]
     );
+
+    try {
+      await sendNewApplicationAdminEmail({
+        applicationId: result.rows[0].id,
+        students,
+        needsAuthorityRequest: Boolean(needsAuthorityRequest),
+        authorityDetails: needsAuthorityRequest ? authorityDetails : null,
+      });
+    } catch (mailError) {
+      console.error("Admin notification email failed:", mailError);
+    }
 
     return NextResponse.json(
       { id: result.rows[0].id, message: "Application saved successfully." },

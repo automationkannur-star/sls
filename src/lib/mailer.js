@@ -92,7 +92,7 @@ export const sendApplicationEmailToAuthority = async ({
     from,
     to,
     cc: getAdminCc(),
-    subject: `Internship Application Request - ID ${applicationId}`,
+    subject: `Internship Application Request - School of Legal Studies, Palayad`,
     text:
       emailText ||
       (`From: School of Legal Studies\n` +
@@ -122,6 +122,74 @@ export const sendApplicationEmailToAuthority = async ({
       ${authorityPlace ? `<p><strong>Place:</strong> ${authorityPlace}</p>` : ""}
       <p>Please let us know if any additional information or documents are required.</p>
       <p>Sincerely,<br/>School of Legal Studies</p>
+    `,
+  });
+
+  return { sent: true };
+};
+
+export const sendNewApplicationAdminEmail = async ({
+  applicationId,
+  students,
+  needsAuthorityRequest,
+  authorityDetails,
+}) => {
+  const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
+  if (!adminEmail) {
+    return { sent: false };
+  }
+
+  const normalizedStudents = Array.isArray(students) ? students : [];
+  const firstStudent = normalizedStudents[0] || {};
+  const authorityName = String(authorityDetails?.authorityName || "").trim();
+  const authorityPlace = String(authorityDetails?.place || "").trim();
+  const authorityEmail = String(authorityDetails?.email || "").trim();
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to: adminEmail,
+    subject: `New Internship Application Submitted - ID ${applicationId}`,
+    text:
+      `A new internship application has been submitted.\n\n` +
+      `Application ID: ${applicationId}\n` +
+      `Students Count: ${normalizedStudents.length}\n` +
+      `First Student: ${String(firstStudent?.studentName || "-").trim() || "-"}\n` +
+      `First Student Email: ${String(firstStudent?.email || "-").trim() || "-"}\n` +
+      `Authority Request: ${needsAuthorityRequest ? "Yes" : "No"}\n` +
+      `${needsAuthorityRequest ? `Authority Name: ${authorityName || "-"}\n` : ""}` +
+      `${needsAuthorityRequest ? `Authority Place: ${authorityPlace || "-"}\n` : ""}` +
+      `${needsAuthorityRequest ? `Authority Email: ${authorityEmail || "-"}\n` : ""}`,
+    html: `
+      <p>A new internship application has been submitted.</p>
+      <ul>
+        <li><strong>Application ID:</strong> ${applicationId}</li>
+        <li><strong>Students Count:</strong> ${normalizedStudents.length}</li>
+        <li><strong>First Student:</strong> ${
+          String(firstStudent?.studentName || "-").trim() || "-"
+        }</li>
+        <li><strong>First Student Email:</strong> ${
+          String(firstStudent?.email || "-").trim() || "-"
+        }</li>
+        <li><strong>Authority Request:</strong> ${
+          needsAuthorityRequest ? "Yes" : "No"
+        }</li>
+        ${
+          needsAuthorityRequest
+            ? `<li><strong>Authority Name:</strong> ${authorityName || "-"}</li>`
+            : ""
+        }
+        ${
+          needsAuthorityRequest
+            ? `<li><strong>Authority Place:</strong> ${authorityPlace || "-"}</li>`
+            : ""
+        }
+        ${
+          needsAuthorityRequest
+            ? `<li><strong>Authority Email:</strong> ${authorityEmail || "-"}</li>`
+            : ""
+        }
+      </ul>
     `,
   });
 
