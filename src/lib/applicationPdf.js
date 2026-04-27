@@ -88,10 +88,9 @@ const buildInstitutionStudentTableHtml = (students) => {
   }
 
   const rows = students
-    .map((student, index) => {
+    .map((student) => {
       return `
         <tr>
-          <td>${index + 1}</td>
           <td>${escapeHtml(student?.studentName || "-")}</td>
           <td>${escapeHtml(student?.admissionNumber || "-")}</td>
           <td>${escapeHtml(student?.semester || "-")}</td>
@@ -105,7 +104,6 @@ const buildInstitutionStudentTableHtml = (students) => {
     <table class="inst-student-table">
       <thead>
         <tr>
-          <th>#</th>
           <th>Name</th>
           <th>Admission No</th>
           <th>Semester</th>
@@ -507,7 +505,7 @@ const injectPrintOverrides = (html) => {
         object-fit: contain;
       }
       .inst-student-table {
-        width: 100%;
+        width: 90%;
         border-collapse: collapse;
         table-layout: fixed;
         font-size: 0.56em;
