@@ -24,6 +24,7 @@ export async function POST(request) {
           students,
           authority_name,
           authority_place,
+          authority_starting_from,
           authority_email,
           institution,
           created_at

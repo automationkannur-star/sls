@@ -10,7 +10,28 @@ export async function POST(request) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const batchYearRegex = /^\d{4}$/;
     const semesterRegex = /^[1-9]$/;
+    const dateDdMmYyyyRegex = /^\d{2}-\d{2}-\d{4}$/;
     const normalizedInstitution = String(institution).trim().toLowerCase();
+
+    const isValidDdMmYyyyDate = (raw) => {
+      const value = String(raw || "").trim();
+      if (!dateDdMmYyyyRegex.test(value)) {
+        return false;
+      }
+      const [dd, mm, yyyy] = value.split("-").map((part) => Number(part));
+      if (!Number.isInteger(dd) || !Number.isInteger(mm) || !Number.isInteger(yyyy)) {
+        return false;
+      }
+      if (yyyy < 1900 || yyyy > 2100) {
+        return false;
+      }
+      const date = new Date(yyyy, mm - 1, dd);
+      return (
+        date.getFullYear() === yyyy &&
+        date.getMonth() === mm - 1 &&
+        date.getDate() === dd
+      );
+    };
 
     if (!Array.isArray(students) || students.length === 0) {
       return NextResponse.json(
@@ -107,6 +128,17 @@ export async function POST(request) {
       );
     }
 
+    const authorityStartingFrom =
+      normalizedInstitution !== "mjs" && needsAuthorityRequest
+        ? String(authorityDetails?.startingFrom || "").trim()
+        : "";
+    if (authorityStartingFrom && !isValidDdMmYyyyDate(authorityStartingFrom)) {
+      return NextResponse.json(
+        { message: "Starting From must be in dd-mm-yyyy format." },
+        { status: 400 }
+      );
+    }
+
     const result = await pool.query(
       `
         INSERT INTO internship_applications (
@@ -114,11 +146,12 @@ export async function POST(request) {
           needs_authority_request,
           authority_name,
           authority_place,
+          authority_starting_from,
           authority_email,
           send_as_email,
           institution
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
       `,
       [
@@ -126,6 +159,7 @@ export async function POST(request) {
         Boolean(needsAuthorityRequest),
         needsAuthorityRequest ? authorityDetails?.authorityName?.trim() || null : null,
         needsAuthorityRequest ? authorityDetails?.place?.trim() || null : null,
+        authorityStartingFrom || null,
         needsAuthorityRequest ? authorityDetails?.email?.trim() || null : null,
         needsAuthorityRequest ? Boolean(authorityDetails?.sendAsEmail) : false,
         normalizedInstitution,

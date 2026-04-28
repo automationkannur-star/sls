@@ -11,6 +11,7 @@ export default function Home() {
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const BATCH_YEAR_REGEX = /^\d{4}$/;
   const SEMESTER_REGEX = /^[1-9]$/;
+  const DATE_DD_MM_YYYY_REGEX = /^\d{2}-\d{2}-\d{4}$/;
   const MIN_BATCH_YEAR = 2015;
   const MAX_BATCH_YEAR = 2050;
 
@@ -27,6 +28,7 @@ export default function Home() {
     authorityName: "",
     email: "",
     place: "",
+    startingFrom: "",
     sendAsEmail: false,
   });
   const [needsAuthorityRequest, setNeedsAuthorityRequest] = useState(false);
@@ -38,6 +40,7 @@ export default function Home() {
     firstStudentEmail: "",
     authorityName: "",
     authorityEmail: "",
+    authorityStartingFrom: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState({
@@ -64,6 +67,7 @@ export default function Home() {
       authorityName: "",
       email: "",
       place: "",
+      startingFrom: "",
       sendAsEmail: false,
     });
     setNeedsAuthorityRequest(false);
@@ -75,6 +79,7 @@ export default function Home() {
       firstStudentEmail: "",
       authorityName: "",
       authorityEmail: "",
+      authorityStartingFrom: "",
     });
     setSubmitMessage({ type: "", text: "" });
   };
@@ -198,9 +203,17 @@ export default function Home() {
   };
 
   const handleAuthorityChange = (field, value) => {
+    const normalizedValue =
+      field === "startingFrom"
+        ? String(value || "")
+            .replace(/[^\d]/g, "")
+            .slice(0, 8)
+            .replace(/^(\d{2})(\d)/, "$1-$2")
+            .replace(/^(\d{2}-\d{2})(\d)/, "$1-$2")
+        : value;
     setAuthorityDetails((prevDetails) => ({
       ...prevDetails,
-      [field]: value,
+      [field]: normalizedValue,
     }));
     setSubmitMessage({ type: "", text: "" });
 
@@ -217,11 +230,38 @@ export default function Home() {
         authorityEmail: "",
       }));
     }
+
+    if (field === "startingFrom") {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        authorityStartingFrom: "",
+      }));
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitMessage({ type: "", text: "" });
+
+    const isValidDdMmYyyyDate = (raw) => {
+      const value = String(raw || "").trim();
+      if (!DATE_DD_MM_YYYY_REGEX.test(value)) {
+        return false;
+      }
+      const [dd, mm, yyyy] = value.split("-").map((part) => Number(part));
+      if (!Number.isInteger(dd) || !Number.isInteger(mm) || !Number.isInteger(yyyy)) {
+        return false;
+      }
+      if (yyyy < 1900 || yyyy > 2100) {
+        return false;
+      }
+      const date = new Date(yyyy, mm - 1, dd);
+      return (
+        date.getFullYear() === yyyy &&
+        date.getMonth() === mm - 1 &&
+        date.getDate() === dd
+      );
+    };
 
     const studentNameErrors = {};
     const studentAdmissionNumberErrors = {};
@@ -279,6 +319,14 @@ export default function Home() {
       }
     }
 
+    let authorityStartingFromError = "";
+    if (!isMjsInstitution && needsAuthorityRequest) {
+      const startingFrom = String(authorityDetails.startingFrom || "").trim();
+      if (startingFrom && !isValidDdMmYyyyDate(startingFrom)) {
+        authorityStartingFromError = "Starting From must be in dd-mm-yyyy format.";
+      }
+    }
+
     setErrors({
       studentNames: studentNameErrors,
       studentAdmissionNumbers: studentAdmissionNumberErrors,
@@ -287,6 +335,7 @@ export default function Home() {
       firstStudentEmail: firstStudentEmailError,
       authorityName: authorityNameError,
       authorityEmail: authorityEmailError,
+      authorityStartingFrom: authorityStartingFromError,
     });
 
     const hasErrors =
@@ -296,7 +345,8 @@ export default function Home() {
       Object.keys(studentBatchYearErrors).length > 0 ||
       Boolean(firstStudentEmailError) ||
       Boolean(authorityNameError) ||
-      Boolean(authorityEmailError);
+      Boolean(authorityEmailError) ||
+      Boolean(authorityStartingFromError);
 
     if (hasErrors) {
       return;
@@ -507,6 +557,7 @@ export default function Home() {
                       ...prevErrors,
                       authorityName: "",
                       authorityEmail: "",
+                      authorityStartingFrom: "",
                     }));
                   }
                 }}
@@ -561,6 +612,32 @@ export default function Home() {
                 />
                 {!isMjsInstitution && (
                   <>
+                    {needsAuthorityRequest && (
+                      <div className={styles.fieldGroup}>
+                        <input
+                          id="authority-starting-from"
+                          className={`${styles.input} ${
+                            errors.authorityStartingFrom ? styles.inputError : ""
+                          }`}
+                          type="text"
+                          value={authorityDetails.startingFrom}
+                          onChange={(event) =>
+                            handleAuthorityChange("startingFrom", event.target.value)
+                          }
+                          placeholder="Starting From (dd-mm-yyyy)"
+                          inputMode="numeric"
+                          maxLength={10}
+                          pattern="\d{2}-\d{2}-\d{4}"
+                          title="Use format dd-mm-yyyy"
+                          autoComplete="off"
+                        />
+                        {errors.authorityStartingFrom && (
+                          <p className={styles.errorText}>
+                            {errors.authorityStartingFrom}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className={styles.fieldGroup}>
                       <input
                         id="authority-email"

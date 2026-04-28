@@ -155,6 +155,10 @@ export const buildInstitutionEmailBodyHtml = (application) => {
   const toBlockHtml = buildInstitutionToBlockHtml(application);
   const studentRows = buildInstitutionStudentRowsForEmail(students);
   const institutionInfo = escapeHtml(String(application?.authority_name || "-").trim() || "-");
+  const authorityStartingFrom = String(application?.authority_starting_from || "").trim();
+  const startingFromSuffix = authorityStartingFrom
+    ? ` (starting from ${escapeHtml(authorityStartingFrom)})`
+    : "";
 
   return `
     <div style="font-family:Times New Roman, serif;color:#111;line-height:1.5;max-width:760px;">
@@ -166,7 +170,7 @@ export const buildInstitutionEmailBodyHtml = (application) => {
       <p style="margin:0 0 10px 0;"><strong>Subject: Request for Permission for Internship Opportunities for Students</strong></p>
       <p style="margin:0 0 10px 0;">
         I hope this letter finds you well. I am writing to request permission for the following students
-        of School of Legal Studies, Kannur University to undertake 14 days internship at Office Of ${institutionInfo}
+        of School of Legal Studies, Kannur University to undertake 14 days${startingFromSuffix} internship at Office Of ${institutionInfo}
         as part of their academic curriculum.
       </p>
       ${
@@ -283,6 +287,7 @@ const renderHtmlTemplate = (
     "{{AUTHORITY_REQUEST}}": application.needs_authority_request ? "Yes" : "No",
     "{{AUTHORITY_NAME}}": application.authority_name || "-",
     "{{AUTHORITY_PLACE}}": application.authority_place || "-",
+    "{{AUTHORITY_STARTING_FROM}}": application.authority_starting_from || "-",
     "{{AUTHORITY_EMAIL}}": application.authority_email || "-",
     "{{SEND_AS_EMAIL}}": application.send_as_email ? "Yes" : "No",
     "{{Date}}": dateDisplay,
@@ -318,6 +323,14 @@ const renderHtmlTemplate = (
   // Institution name in letter body: anchor to "at Office Of " so we never cross-match
   // the Year placeholder above.
   const institutionNameHtml = escapeHtml(String(application.authority_name || "-").trim() || "-");
+  const authorityStartingFrom = String(application?.authority_starting_from || "").trim();
+  const startingFromSuffix = authorityStartingFrom
+    ? ` (starting from ${escapeHtml(authorityStartingFrom)})`
+    : "";
+  html = html.replace(
+    /undertake 14 days(?!\s*\(starting from\b)/i,
+    `undertake 14 days${startingFromSuffix}`
+  );
   html = html.replace(
     /at Office Of \{\{[\s\S]*?institution_info\}\}/i,
     `at Office Of ${institutionNameHtml}`
@@ -636,6 +649,7 @@ const generateFallbackPdf = async (application) => {
   );
   line(`Name / Office Name: ${application.authority_name || "-"}`);
   line(`Place: ${application.authority_place || "-"}`);
+  line(`Starting From: ${application.authority_starting_from || "-"}`);
   line(`Send as Email: ${application.send_as_email ? "Yes" : "No"}`);
 
   return Buffer.from(await pdfDoc.save());

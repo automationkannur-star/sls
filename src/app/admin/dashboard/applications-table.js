@@ -906,6 +906,11 @@ export default function ApplicationsTable({ applications }) {
             <dt className="col-sm-4">Place</dt>
             <dd className="col-sm-8">{selectedApplication?.authority_place || "-"}</dd>
 
+            <dt className="col-sm-4">Starting From</dt>
+            <dd className="col-sm-8">
+              {selectedApplication?.authority_starting_from || "-"}
+            </dd>
+
             <dt className="col-sm-4">Authority Email</dt>
             <dd className="col-sm-8">{selectedApplication?.authority_email || "-"}</dd>
 

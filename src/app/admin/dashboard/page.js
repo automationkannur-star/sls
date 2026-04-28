@@ -18,6 +18,7 @@ export default async function AdminDashboardPage() {
         needs_authority_request,
         authority_name,
         authority_place,
+        authority_starting_from,
         authority_email,
         send_as_email,
         institution,
