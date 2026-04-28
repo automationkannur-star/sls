@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./page.module.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
@@ -48,10 +48,21 @@ export default function Home() {
     text: "",
   });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showAuthorityWarningModal, setShowAuthorityWarningModal] = useState(false);
+  const [disableSubmitForAuthorityWarning, setDisableSubmitForAuthorityWarning] =
+    useState(false);
   const pathname = usePathname();
   const institution = pathname === "/mjs" ? "mjs" : "sls";
   const isMjsInstitution = institution === "mjs";
   const shouldRequireAuthorityDetails = isMjsInstitution || needsAuthorityRequest;
+  const requiresAuthorityRequestForMultipleStudents =
+    !isMjsInstitution && students.length > 1 && !needsAuthorityRequest;
+
+  useEffect(() => {
+    if (!requiresAuthorityRequestForMultipleStudents) {
+      setDisableSubmitForAuthorityWarning(false);
+    }
+  }, [requiresAuthorityRequestForMultipleStudents]);
 
   const resetForm = () => {
     setStudents([
@@ -242,6 +253,11 @@ export default function Home() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitMessage({ type: "", text: "" });
+    if (requiresAuthorityRequestForMultipleStudents) {
+      setDisableSubmitForAuthorityWarning(true);
+      setShowAuthorityWarningModal(true);
+      return;
+    }
 
     const isValidDdMmYyyyDate = (raw) => {
       const value = String(raw || "").trim();
@@ -691,11 +707,32 @@ export default function Home() {
           </p>
         )}
         <div className={styles.submitRow}>
-          <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
+          <button
+            className={styles.submitButton}
+            type="submit"
+            disabled={isSubmitting || disableSubmitForAuthorityWarning}
+          >
             {isSubmitting ? "Saving..." : "Submit"}
           </button>
         </div>
       </form>
+      <Modal
+        show={showAuthorityWarningModal}
+        onHide={() => setShowAuthorityWarningModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Warning</Modal.Title>
+        </Modal.Header>
+        <Modal.Body><p>Please submit separate requests for each student to get their individual bonafide certificate.</p>
+          <p>If you need bonafide certificate for a group of students or bonafide to an authority, make sure to select (tick) the appropriate checkbox before submitting.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="warning" onClick={() => setShowAuthorityWarningModal(false)}>
+            OK
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Modal
         show={showSuccessModal}
         onHide={() => setShowSuccessModal(false)}
