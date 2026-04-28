@@ -249,10 +249,14 @@ const renderHtmlTemplate = (
   const year = String(submittedDate.getFullYear());
   const dateDisplay = submittedDate.toLocaleDateString("en-GB");
   const semesterDisplay = formatSemesterWithSuperscript(firstStudent.semester);
+  const normalizedInstitution = String(application?.institution || "")
+    .trim()
+    .toLowerCase();
+  const durationYearSpan = normalizedInstitution === "mjs" ? 3 : 5;
   const batchYear = Number(firstStudent.batch);
   const duration =
     Number.isInteger(batchYear) && batchYear >= 2015 && batchYear <= 2050
-      ? `${batchYear}-${batchYear + 5}`
+      ? `${batchYear}-${batchYear + durationYearSpan}`
       : "-";
 
   const studentRows =
