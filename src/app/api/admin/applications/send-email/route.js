@@ -67,6 +67,7 @@ export async function POST(request) {
       studentName: students[0]?.studentName || "student",
       applicationId: application.id,
       pdfBuffer: buffer,
+      institution: application.institution,
     });
 
     return NextResponse.json(

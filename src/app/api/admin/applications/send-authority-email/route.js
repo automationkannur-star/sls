@@ -25,6 +25,7 @@ export async function POST(request) {
           authority_name,
           authority_place,
           authority_email,
+          institution,
           created_at
         FROM internship_applications
         WHERE id = $1
@@ -70,6 +71,7 @@ export async function POST(request) {
       studentName: students[0]?.studentName || "",
       emailText,
       emailHtml,
+      institution: application.institution,
     });
 
     return NextResponse.json(

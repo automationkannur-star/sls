@@ -71,6 +71,7 @@ export async function POST(request) {
           studentName: students[0]?.studentName || "student",
           applicationId: application.id,
           pdfBuffer: buffer,
+          institution: application.institution,
         });
       } catch (mailError) {
         console.error("Approve email sending failed:", mailError);

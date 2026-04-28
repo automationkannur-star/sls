@@ -33,11 +33,23 @@ const getAdminCc = () => {
   return adminEmail || undefined;
 };
 
+const getFromAddress = (institution) => {
+  const normalizedInstitution = String(institution || "").trim().toLowerCase();
+  if (normalizedInstitution === "mjs") {
+    return (
+      String(process.env.SMTP_FROM_MJS || "").trim() ||
+      String(process.env.SMTP_FROM || "").trim()
+    );
+  }
+  return String(process.env.SMTP_FROM || "").trim();
+};
+
 export const sendApplicationApprovedEmail = async ({
   recipients,
   studentName,
   applicationId,
   pdfBuffer,
+  institution,
 }) => {
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return { sent: false, count: 0 };
@@ -45,7 +57,7 @@ export const sendApplicationApprovedEmail = async ({
 
   const transporter = getTransporter();
   await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: getFromAddress(institution),
     to: recipients.join(","),
     cc: getAdminCc(),
     subject: "Internship Application Approved",
@@ -76,6 +88,7 @@ export const sendApplicationEmailToAuthority = async ({
   studentName,
   emailText,
   emailHtml,
+  institution,
 }) => {
   const to = String(authorityEmail || "").trim();
   if (!to) {
@@ -83,7 +96,7 @@ export const sendApplicationEmailToAuthority = async ({
   }
 
   const transporter = getTransporter();
-  const fromAddress = process.env.SMTP_FROM;
+  const fromAddress = getFromAddress(institution);
   const from = fromAddress.includes("<")
     ? fromAddress
     : `"School of Legal Studies" <${fromAddress}>`;
@@ -133,6 +146,7 @@ export const sendNewApplicationAdminEmail = async ({
   students,
   needsAuthorityRequest,
   authorityDetails,
+  institution,
 }) => {
   const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
   if (!adminEmail) {
@@ -147,7 +161,7 @@ export const sendNewApplicationAdminEmail = async ({
 
   const transporter = getTransporter();
   await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: getFromAddress(institution),
     to: adminEmail,
     subject: `New Internship Application Submitted - ID ${applicationId}`,
     text:

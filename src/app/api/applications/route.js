@@ -138,6 +138,7 @@ export async function POST(request) {
         students,
         needsAuthorityRequest: Boolean(needsAuthorityRequest),
         authorityDetails: needsAuthorityRequest ? authorityDetails : null,
+        institution: normalizedInstitution,
       });
     } catch (mailError) {
       console.error("Admin notification email failed:", mailError);
