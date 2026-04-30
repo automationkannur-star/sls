@@ -1,11 +1,18 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function SiteHeader() {
+  const pathname = usePathname();
+  const isStudentRequest = pathname === "/service-request";
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <header className="site-header border-bottom bg-white shadow-sm">
       <div className="container py-3">
-        <div className="d-flex align-items-center gap-3 flex-wrap">
+        <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
           <Link
             href="/"
             className="d-flex align-items-center gap-3 text-decoration-none text-body"
@@ -23,6 +30,22 @@ export default function SiteHeader() {
               <div className="text-muted small">Internship Application</div>
             </div>
           </Link>
+          {!isAdminRoute && (
+            <nav className="header-menu d-flex align-items-center gap-2">
+              <Link
+                href="/"
+                className={`header-menu-item ${!isStudentRequest ? "active" : ""}`}
+              >
+                Internship Application
+              </Link>
+              <Link
+                href="/service-request"
+                className={`header-menu-item ${isStudentRequest ? "active" : ""}`}
+              >
+                Student Request
+              </Link>
+            </nav>
+          )}
         </div>
       </div>
     </header>

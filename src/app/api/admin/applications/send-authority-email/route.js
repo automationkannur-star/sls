@@ -49,6 +49,13 @@ export async function POST(request) {
     }
 
     const students = parseStudents(application.students);
+    const studentCcRecipients = [
+      ...new Set(
+        students
+          .map((student) => String(student?.email || "").trim())
+          .filter(Boolean)
+      ),
+    ];
     const emailHtml = buildInstitutionEmailBodyHtml(application);
     const emailText = [
       `SLS/1/HOD/${new Date(application.created_at || Date.now()).getFullYear()}`,
@@ -73,6 +80,7 @@ export async function POST(request) {
       emailText,
       emailHtml,
       institution: application.institution,
+      ccRecipients: studentCcRecipients,
     });
 
     return NextResponse.json(

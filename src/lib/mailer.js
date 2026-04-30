@@ -89,6 +89,7 @@ export const sendApplicationEmailToAuthority = async ({
   emailText,
   emailHtml,
   institution,
+  ccRecipients,
 }) => {
   const to = String(authorityEmail || "").trim();
   if (!to) {
@@ -100,11 +101,16 @@ export const sendApplicationEmailToAuthority = async ({
   const from = fromAddress.includes("<")
     ? fromAddress
     : `"School of Legal Studies" <${fromAddress}>`;
+  const adminCc = getAdminCc();
+  const normalizedCcRecipients = Array.isArray(ccRecipients)
+    ? ccRecipients.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const ccList = [...new Set([...(adminCc ? [adminCc] : []), ...normalizedCcRecipients])];
 
   await transporter.sendMail({
     from,
     to,
-    cc: getAdminCc(),
+    cc: ccList.length > 0 ? ccList.join(",") : undefined,
     subject: `Internship Application Request - School of Legal Studies, Palayad`,
     text:
       emailText ||
@@ -205,6 +211,128 @@ export const sendNewApplicationAdminEmail = async ({
         }
       </ul>
     `,
+  });
+
+  return { sent: true };
+};
+
+export const sendServiceRequestAdminEmail = async ({
+  serviceRequestId,
+  studentName,
+  email,
+  mobileNumber,
+  admissionNumber,
+  course,
+  semester,
+  batch,
+  requestSubject,
+  message,
+  priority,
+  uploadedFileUrls,
+  status,
+}) => {
+  const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
+  if (!adminEmail) {
+    return { sent: false };
+  }
+
+  const normalizedUploadedFileUrls = Array.isArray(uploadedFileUrls)
+    ? uploadedFileUrls.filter(Boolean)
+    : [];
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: getFromAddress("sls"),
+    to: adminEmail,
+    subject: `New Student Request Submitted - ID ${serviceRequestId}`,
+    text:
+      `A new student request has been submitted.\n\n` +
+      `Request ID: ${serviceRequestId}\n` +
+      `Student Name: ${String(studentName || "-").trim() || "-"}\n` +
+      `Email: ${String(email || "-").trim() || "-"}\n` +
+      `Mobile Number: ${String(mobileNumber || "-").trim() || "-"}\n` +
+      `Admission Number: ${String(admissionNumber || "-").trim() || "-"}\n` +
+      `Course: ${String(course || "-").trim() || "-"}\n` +
+      `Semester: ${String(semester || "-").trim() || "-"}\n` +
+      `Batch: ${String(batch || "-").trim() || "-"}\n` +
+      `Request Subject: ${String(requestSubject || "-").trim() || "-"}\n` +
+      `Priority: ${String(priority || "-").trim() || "-"}\n` +
+      `Status: ${String(status || "New").trim() || "New"}\n` +
+      `Uploaded Files: ${
+        normalizedUploadedFileUrls.length > 0
+          ? normalizedUploadedFileUrls.join(", ")
+          : "No files uploaded"
+      }\n` +
+      `Message:\n${String(message || "-").trim() || "-"}`,
+    html: `
+      <p>A new student request has been submitted.</p>
+      <ul>
+        <li><strong>Request ID:</strong> ${serviceRequestId}</li>
+        <li><strong>Student Name:</strong> ${String(studentName || "-").trim() || "-"}</li>
+        <li><strong>Email:</strong> ${String(email || "-").trim() || "-"}</li>
+        <li><strong>Mobile Number:</strong> ${String(mobileNumber || "-").trim() || "-"}</li>
+        <li><strong>Admission Number:</strong> ${
+          String(admissionNumber || "-").trim() || "-"
+        }</li>
+        <li><strong>Course:</strong> ${String(course || "-").trim() || "-"}</li>
+        <li><strong>Semester:</strong> ${String(semester || "-").trim() || "-"}</li>
+        <li><strong>Batch:</strong> ${String(batch || "-").trim() || "-"}</li>
+        <li><strong>Request Subject:</strong> ${
+          String(requestSubject || "-").trim() || "-"
+        }</li>
+        <li><strong>Priority:</strong> ${String(priority || "-").trim() || "-"}</li>
+        <li><strong>Status:</strong> ${String(status || "New").trim() || "New"}</li>
+        <li><strong>Uploaded Files:</strong> ${
+          normalizedUploadedFileUrls.length > 0
+            ? normalizedUploadedFileUrls
+                .map(
+                  (url) =>
+                    `<a href="${String(url)}" target="_blank" rel="noreferrer">${String(url)}</a>`
+                )
+                .join(", ")
+            : "No files uploaded"
+        }</li>
+      </ul>
+      <p><strong>Message:</strong></p>
+      <p>${String(message || "-").trim() || "-"}</p>
+    `,
+  });
+
+  return { sent: true };
+};
+
+export const sendStudentRequestReplyEmail = async ({
+  toEmail,
+  studentName,
+  requestId,
+  replyMessage,
+  attachments,
+}) => {
+  const to = String(toEmail || "").trim();
+  if (!to) {
+    return { sent: false };
+  }
+
+  const transporter = getTransporter();
+  const safeAttachments = Array.isArray(attachments)
+    ? attachments.filter((item) => item && item.content)
+    : [];
+
+  await transporter.sendMail({
+    from: getFromAddress("sls"),
+    to,
+    cc: getAdminCc(),
+    subject: `Reply to Student Request #${requestId}`,
+    text:
+      `Dear ${String(studentName || "Student").trim() || "Student"},\n\n` +
+      `${String(replyMessage || "").trim()}\n\n` +
+      `Regards,\nSchool of Legal Studies Office`,
+    html: `
+      <p>Dear ${String(studentName || "Student").trim() || "Student"},</p>
+      <p style="white-space:pre-wrap;">${String(replyMessage || "").trim()}</p>
+      <p>Regards,<br/>School of Legal Studies Office</p>
+    `,
+    attachments: safeAttachments,
   });
 
   return { sent: true };
